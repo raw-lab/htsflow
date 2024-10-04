@@ -1,0 +1,292 @@
+---
+title: "HTP_Flow"
+output: pdf_document
+date: "2024-10-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Plots
+
+Load libraries
+
+```{r}
+library(ggplot2)
+library(scales)
+library(dplyr)
+```
+
+Read in data
+
+```{r}
+avgs <- read.csv('CSVs/averages_plots.csv')
+times <- read.csv('CSVs/time_course.csv')
+times <- times %>% mutate(Time.Series = as.POSIXct(Time.Series, format = "%H:%M:%S"))
+efm <- read.csv('CSVs/FCM-EFM_averages.csv')
+```
+
+## Figure 2: All Locations and Experiments Averages
+
+```{r}
+# Reorder data and define colors
+level_order <- c('U', 'C', 'C-B') 
+colors <- c("#FD8D3C", "#A63603", "#FDD0A2",  "#F768A1", "#AE017E", "#FCC5C0", "#66C2A4", "#006D2C", "#B1DCD4")
+
+avgs <- avgs %>% mutate(unique_id = paste(Location, Experiment, sep = "_"))
+
+# Plot data
+f2 <- ggplot(avgs, aes(x = factor(Experiment, level=level_order), y = Avg, fill = unique_id, width = 0.8)) +
+  geom_bar(stat ="identity") + 
+  geom_errorbar(aes(ymin = Avg - StDev, ymax = Avg + StDev), width = 0.1, position = position_dodge(0.9)) + 
+  scale_fill_manual(values = colors) +
+  scale_x_discrete(labels = c("Untreated", "Chloroform", "Chloroform +\nBenzonase")) +
+  scale_y_continuous(labels = function(x) format(x, scientific = TRUE), breaks = pretty_breaks(n = 5)) +
+  labs(x ="Experiment", y = "Concentration (VLP/mL)") + 
+  theme(text = element_text(size = 13), plot.title = element_text(hjust = 0.5), legend.position = "none") +
+  facet_wrap(~Location, scales = "free")
+
+# Save and show plot
+ggsave("Figure-2.png", plot = f2, height = 7 , width = 10.5)
+f2
+```
+
+## Figure 4: EFM vs FCM Averages
+
+```{r}
+# Plot data
+f4 <- ggplot(efm, aes(x = Location, y = Avg, fill = Location, width = 0.8)) + 
+  geom_bar(stat = "identity") + 
+  geom_errorbar(aes(ymin = Avg - StDev, ymax = Avg + StDev), width = 0.1, position = position_dodge(0.9)) + 
+  scale_fill_manual(values = c("#1B9E77", "#A63603", "#D95F02", "#AE017E")) +
+  scale_y_continuous(labels = function(x) format(x, scientific = TRUE), trans = 'log10') +
+  labs(x = "Location", y = "Concentration (VLP/mL)") + 
+  theme(text = element_text(size=18), plot.title = element_text(hjust = 0.5), legend.position = "none")
+
+# Save and show plot
+ggsave("Figure-4.png", plot = f4)
+f4
+```
+
+## Supplemental Figure 3: Untreated WBS Time Course
+
+```{r}
+# Set Y axis
+ylabs <- c("1e+01", "1e+02", "1e+03", "1e+04", "1e+05", "1e+06", "1e+07", "1e+08")
+yticks <- as.numeric(ylabs)
+
+# Plot data
+sf3 <- ggplot(times, aes(x = Time.Series, y = WBS)) +
+  geom_line(color="#006D2C") +
+  scale_x_datetime(breaks = pretty_breaks(n=10),date_labels = "%H:%M:%S") +
+  scale_y_log10(breaks = yticks, limits = c(1e+01,1e+08), labels=ylabs) +
+  labs(x = "Time", y = "Concentration (VLP/mL)") + 
+  theme(text = element_text(size=18), panel.grid.minor = element_blank())
+
+# Save and show plot
+ggsave("SupFigure-3.png", plot = sf3, height = 7 , width = 13)
+sf3
+```
+
+## Supplemental Figure 4: All Locations Time Course
+
+```{r}
+# Used in previous chunk, uncomment these lines if it was not ran already
+# ylabs <- c("1e+01", "1e+02", "1e+03", "1e+04", "1e+05", "1e+06", "1e+07", "1e+08")
+# yticks <- as.numeric(ylabs)
+
+# Plot data
+sf4 <- ggplot(times, aes(x = Time.Series)) +
+  geom_line(aes(y = B.FGL.C, color = "#A63603")) +
+  geom_line(aes(y = B.GSL.C, color = "#AE017E")) +
+  geom_line(aes(y = B.WBS.C, color = "#006D2C")) +
+  scale_x_datetime(breaks = pretty_breaks(n=10),date_labels = "%H:%M:%S") +
+  scale_y_log10(breaks = yticks, limits = c(1e+01,1e+08), labels=ylabs) +
+  labs(x = "Time", y = "Concentration (VLP/mL)") + 
+  guides(color = guide_legend(title = "Location")) +
+  scale_color_manual(labels = c("WBS", "FGL", "GSL"), values = c("#006D2C", "#A63603", "#AE017E")) +
+  theme(text = element_text(size=18), panel.grid.minor = element_blank(), legend.position = c(0.92, 0.15))
+
+# Save and show plot
+ggsave("SupFigure-4.png", plot = sf4, height = 7 , width = 13)
+sf4
+```
+
+## Supplemental Figure 5: Final Averages
+
+```{r}
+# Subset dataframe and organize data
+all <- avgs[c(3, 6, 9),]
+level_order <- c('FGL', 'GSL', 'WBS') 
+all$Location <- factor(all$Location, levels=level_order)
+
+# Plot data
+sf5 <- ggplot(all, aes(x = factor(Location, level = level_order), y = Avg, fill = Location, width = 0.8)) + 
+  geom_bar(stat = "identity") + 
+  geom_errorbar(aes(ymin = Avg - StDev, ymax = Avg + StDev), width = 0.1, position = position_dodge(0.9)) + 
+  scale_fill_manual(values = c("#A63603", "#AE017E", "#006D2C")) +
+  scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) +
+  labs(x = "Location", y = "Concentration (VLP/mL)") + 
+  theme(text = element_text(size=18), plot.title = element_text(hjust = 0.5), legend.position = "none")
+
+# Save and show plot
+ggsave("SupFigure-5.png", plot = sf5)
+sf5
+```
+
+# Statistics
+
+## Stats Summary
+
+### FGL
+
+```{r}
+fgl_u <- times[,2]
+fgl_c <- times[,5]
+fgl_cb <- times[,8]
+
+cat("FGL Untreated")
+cat("\nAverage: ", scientific(mean(fgl_u)))
+cat("\nStandard Deviation: ", scientific(sd(fgl_u)))
+
+cat("\n\nFGL Chloroform")
+cat("\nAverage: ", scientific(mean(fgl_c)))
+cat("\nStandard Deviation: ", scientific(sd(fgl_c)))
+
+cat("\n\nFGL Chloroform + Benzonase")
+cat("\nAverage: ", scientific(mean(fgl_cb)))
+cat("\nStandard Deviation: ", scientific(sd(fgl_cb)))
+```
+
+### GSL
+
+```{r}
+gsl_u <- times[,3]
+gsl_c <- times[,6]
+gsl_cb <- times[,9]
+
+cat("GSL Untreated")
+cat("\nAverage: ", scientific(mean(gsl_u)))
+cat("\nStandard Deviation: ", scientific(sd(gsl_u)))
+
+cat("\n\nGSL Chloroform")
+cat("\nAverage: ", scientific(mean(gsl_c)))
+cat("\nStandard Deviation: ", scientific(sd(gsl_c)))
+
+cat("\n\nGSL Chloroform + Benzonase")
+cat("\nAverage: ", scientific(mean(gsl_cb)))
+cat("\nStandard Deviation: ", scientific(sd(gsl_cb)))
+```
+
+### WBS
+
+#### Overall
+
+```{r}
+wbs_u <- times[,4]
+wbs_c <- times[,7]
+wbs_cb <- times[,10]
+
+cat("WBS Untreated")
+cat("\nAverage: ", scientific(mean(wbs_u)))
+cat("\nStandard Deviation: ", scientific(sd(wbs_u)))
+
+cat("\n\nWBS Untreated, Pre-Degradation")
+cat("\nAverage: ", scientific(mean(wbs_u[1:36])))
+cat("\nStandard Deviation: ", scientific(sd(wbs_u[1:36])))
+
+cat("\n\nWBS Chloroform")
+cat("\nAverage: ", scientific(mean(wbs_c)))
+cat("\nStandard Deviation: ", scientific(sd(wbs_c)))
+
+cat("\n\nWBS Chloroform + Benzonase")
+cat("\nAverage: ", scientific(mean(wbs_cb)))
+cat("\nStandard Deviation: ", scientific(sd(wbs_cb)))
+```
+
+## Degradation Tests
+
+Read in data
+
+```{r}
+untreated <- read.csv('CSVs/untreated_rows.csv')
+```
+
+### Untreated FGL
+
+```{r}
+fgl <- untreated[, c(1:8)]
+
+# Normality
+cat("Normality by Well Plate Row:\n")
+sapply(fgl, function(x){shapiro.test(x)$p.value})
+
+# Variance
+cat("\nVariance by Well Plate Row When Compared to A:\n")
+sapply(subset(fgl, select = FGL_B:FGL_F), function(x){var.test(fgl$FGL_A, x)$p.value})
+
+# Significance
+cat("\nSignificance by Well Plate Row When Compared to A:\n")
+t.test(fgl$FGL_A, fgl$FGL_B, var.equal = TRUE)$p.value
+t.test(fgl$FGL_A, fgl$FGL_C, var.equal = TRUE)$p.value
+wilcox.test(fgl$FGL_A, fgl$FGL_D)$p.value
+t.test(fgl$FGL_A, fgl$FGL_E, var.equal = TRUE)$p.value
+wilcox.test(fgl$FGL_A, fgl$FGL_F)$p.value
+t.test(fgl$FGL_A, fgl$G, var.equal = TRUE)$p.value
+t.test(fgl$FGL_A, fgl$FGL_H, var.equal = TRUE)$p.value
+```
+
+### Untreated GSL
+
+```{r}
+gsl <- untreated[, c(9:16)]
+
+# Normality
+cat("Normality by Well Plate Row:\n")
+sapply(gsl, function(x){shapiro.test(x)$p.value})
+
+# Significance
+cat("\nSignificance by Well Plate Row When Compared to A:\n")
+sapply(subset(gsl, select = GSL_B:GSL_F), function(x){wilcox.test(gsl$GSL_A, x)$p.value})
+```
+
+### Untreated WBS
+
+```{r}
+wbs <- untreated[, c(17:24)]
+
+# Normality
+cat("Normality by Well Plate Row:\n")
+sapply(wbs, function(x){shapiro.test(x)$p.value})
+
+# Variance
+cat("\nVariance by Well Plate Row When Compared to A:\n")
+sapply(subset(wbs, select = WBS_B:WBS_F), function(x){var.test(wbs$WBS_A, x)$p.value})
+
+# Significance
+cat("\nSignificance by Well Plate Row When Compared to A:\n")
+sapply(subset(wbs, select = WBS_B:WBS_F), function(x){t.test(wbs$WBS_A, x, var.equal = TRUE)$p.value})
+cat("\tWBS_G: ", wilcox.test(wbs$WBS_A, wbs$WBS_G)$p.value)
+cat("\tWBS_H: ", wilcox.test(wbs$WBS_A, wbs$WBS_H)$p.value)
+```
+
+### Untreated WBS, Three Well Sliding Window
+
+```{r}
+wbs3 <- read.csv('CSVs/WBS-Time-3wells.csv')
+
+# Normality
+cat("Normality by Three Well Sets:\n")
+sapply(wbs3, function(x){shapiro.test(x)$p.value})
+
+# Variance
+cat("\nVariance by Three Well Sets When Compared to A1-A3:\n")
+sapply(subset(wbs3, select = A2.4:H7.9), function(x){var.test(wbs3$A1.3, x)$p.value})
+
+# Significance
+cat("\nSignificance by Three Well Sets When Compared to A1-A3:\n")
+sapply(subset(wbs3, select = -c(A1.3, C1.3, D1.3)), function(x){t.test(wbs3$A1.3, x, var.equal = TRUE)$p.value})
+cat("\tC1.3: ", wilcox.test(wbs3$A1.3, wbs3$C1.3)$p.value)
+cat("\tD1.3: ", wilcox.test(wbs3$A1.3, wbs3$D1.3)$p.value)
+```
